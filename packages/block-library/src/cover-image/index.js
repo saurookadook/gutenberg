@@ -25,8 +25,8 @@ const validAlignments = [ 'left', 'center', 'right', 'wide', 'full' ];
 
 const blockAttributes = {
 	title: {
-		type: 'array',
-		source: 'children',
+		type: 'object',
+		source: 'rich-text',
 		selector: 'p',
 	},
 	url: {
@@ -239,7 +239,7 @@ export const settings = {
 
 		return (
 			<div className={ classes } style={ style }>
-				{ title && title.length > 0 && (
+				{ ! RichText.isEmpty( title ) && (
 					<RichText.Content tagName="p" className="wp-block-cover-image-text" value={ title } />
 				) }
 			</div>
@@ -250,8 +250,8 @@ export const settings = {
 		attributes: {
 			...blockAttributes,
 			title: {
-				type: 'array',
-				source: 'children',
+				type: 'object',
+				source: 'rich-text',
 				selector: 'h2',
 			},
 		},
