@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { BEGIN, COMMIT, REVERT } from 'redux-optimist';
-import { pick, includes, merge } from 'lodash';
+import { pick, includes } from 'lodash';
 
 /**
  * WordPress dependencies
@@ -88,7 +88,9 @@ export const requestPostUpdate = async ( action, store ) => {
 	// such that it is considered synced at the time of the optimistic update,
 	// and divergences in the persisted value are accounted for in the post
 	// reset which follows (i.e. mark as dirty if saved content differs).
-	dispatch( editPost( { content } ) );
+	// Bypass blocks parsing since the updated content is derived from blocks
+	// from state, thus is assumed to be in sync.
+	dispatch( editPost( { content }, { skipContentParse: true } ) );
 
 	let toSend = {
 		...edits,
@@ -106,12 +108,11 @@ export const requestPostUpdate = async ( action, store ) => {
 
 	// Optimistically apply updates under the assumption that the post will be
 	// updated. See below logic in success resolution for revert if autosave is
-	// applied as a revision. Bypass blocks parsing since the updated content
-	// is derived from blocks from state, thus is assumed to be in sync.
-	dispatch( merge( updatePost( toSend ), {
+	// applied as a revision.
+	dispatch( {
+		...updatePost( toSend ),
 		optimist: { id: POST_UPDATE_TRANSACTION_ID },
-		options: { skipContentParse: true },
-	} ) );
+	} );
 
 	let request;
 	if ( isAutosave ) {
