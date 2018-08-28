@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { BEGIN, COMMIT, REVERT } from 'redux-optimist';
-import { pick, includes } from 'lodash';
+import { pick, includes, merge } from 'lodash';
 
 /**
  * WordPress dependencies
@@ -21,6 +21,7 @@ import {
 	removeNotice,
 	createSuccessNotice,
 	createErrorNotice,
+	editPost,
 } from '../actions';
 import {
 	getCurrentPost,
@@ -39,7 +40,6 @@ import { resolveSelector } from './utils';
  * Module Constants
  */
 const SAVE_POST_NOTICE_ID = 'SAVE_POST_NOTICE_ID';
-export const AUTOSAVE_POST_NOTICE_ID = 'AUTOSAVE_POST_NOTICE_ID';
 const TRASH_POST_NOTICE_ID = 'TRASH_POST_NOTICE_ID';
 
 /**
@@ -81,9 +81,18 @@ export const requestPostUpdate = async ( action, store ) => {
 		edits = { status: 'draft', ...edits };
 	}
 
+	const content = getEditedPostContent( state );
+
+	// The edited post property is not kept in sync with blocks state. At save
+	// time, we derive the content and set the edit before calling the update,
+	// such that it is considered synced at the time of the optimistic update,
+	// and divergences in the persisted value are accounted for in the post
+	// reset which follows (i.e. mark as dirty if saved content differs).
+	dispatch( editPost( { content } ) );
+
 	let toSend = {
 		...edits,
-		content: getEditedPostContent( state ),
+		content,
 		id: post.id,
 	};
 
@@ -95,13 +104,14 @@ export const requestPostUpdate = async ( action, store ) => {
 		isAutosave,
 	} );
 
-	// Optimistically apply updates under the assumption that the post
-	// will be updated. See below logic in success resolution for revert
-	// if the autosave is applied as a revision.
-	dispatch( {
-		...updatePost( toSend ),
+	// Optimistically apply updates under the assumption that the post will be
+	// updated. See below logic in success resolution for revert if autosave is
+	// applied as a revision. Bypass blocks parsing since the updated content
+	// is derived from blocks from state, thus is assumed to be in sync.
+	dispatch( merge( updatePost( toSend ), {
 		optimist: { id: POST_UPDATE_TRANSACTION_ID },
-	} );
+		options: { skipContentParse: true },
+	} ) );
 
 	let request;
 	if ( isAutosave ) {
@@ -121,7 +131,7 @@ export const requestPostUpdate = async ( action, store ) => {
 		} );
 	} else {
 		dispatch( removeNotice( SAVE_POST_NOTICE_ID ) );
-		dispatch( removeNotice( AUTOSAVE_POST_NOTICE_ID ) );
+		dispatch( removeNotice( 'autosave-exists' ) );
 
 		request = apiFetch( {
 			path: `/wp/v2/${ postType.rest_base }/${ post.id }`,

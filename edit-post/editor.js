@@ -10,7 +10,7 @@ import { StrictMode } from '@wordpress/element';
  */
 import Layout from './components/layout';
 
-function Editor( { settings, hasFixedToolbar, post, overridePost, onError, ...props } ) {
+function Editor( { settings, hasFixedToolbar, post, onError, ...props } ) {
 	if ( ! post ) {
 		return null;
 	}
@@ -22,7 +22,7 @@ function Editor( { settings, hasFixedToolbar, post, overridePost, onError, ...pr
 
 	return (
 		<StrictMode>
-			<EditorProvider settings={ editorSettings } post={ { ...post, ...overridePost } } { ...props }>
+			<EditorProvider settings={ editorSettings } post={ post } { ...props }>
 				<ErrorBoundary onError={ onError }>
 					<Layout />
 				</ErrorBoundary>
